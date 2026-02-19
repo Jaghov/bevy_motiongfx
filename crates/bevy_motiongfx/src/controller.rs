@@ -38,11 +38,11 @@ fn record_player_timing(
     mut motiongfx: ResMut<MotionGfxWorld>,
     mut q_timelines: Query<(&TimelineId, &mut RecordPlayer)>,
 ) {
-    // Each frame we update the cube position according to the fps
     for (id, mut player) in q_timelines.iter_mut() {
         if let Some(timeline) = motiongfx.get_timeline_mut(id) {
+            // Each frame we update the timeline according to the fps.
             let target_time =
-                timeline.target_time() + 1. / player.fps as f32;
+                timeline.target_time() + player.delta_secs();
 
             timeline.set_target_time(target_time);
             player.curr_frame += 1;
@@ -64,30 +64,44 @@ pub struct RealtimePlayer {
 }
 
 impl RealtimePlayer {
-    pub fn new() -> Self {
-        Self::default()
+    #[inline]
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
+            is_playing: false,
+            time_scale: 1.0,
+        }
     }
 
-    /// Builder method for setting [`RealtimePlayer::is_playing`].
-    pub fn with_playing(mut self, playing: bool) -> Self {
+    /// Builder method for setting [`Self::is_playing`].
+    #[inline]
+    #[must_use]
+    pub const fn with_playing(mut self, playing: bool) -> Self {
         self.is_playing = playing;
         self
     }
 
-    /// Builder method for setting [`RealtimePlayer::time_scale`].
-    pub fn with_time_scale(mut self, time_scale: f32) -> Self {
+    /// Builder method for setting [`Self::time_scale`].
+    #[inline]
+    #[must_use]
+    pub const fn with_time_scale(mut self, time_scale: f32) -> Self {
         self.time_scale = time_scale;
         self
     }
 
-    /// Setter method for setting [`RealtimePlayer::is_playing`].
-    pub fn set_playing(&mut self, playing: bool) -> &mut Self {
+    /// Setter method for setting [`Self::is_playing`].
+    #[inline]
+    pub const fn set_playing(&mut self, playing: bool) -> &mut Self {
         self.is_playing = playing;
         self
     }
 
-    /// Setter method for setting [`RealtimePlayer::time_scale`].
-    pub fn set_time_scale(&mut self, time_scale: f32) -> &mut Self {
+    /// Setter method for setting [`Self::time_scale`].
+    #[inline]
+    pub const fn set_time_scale(
+        &mut self,
+        time_scale: f32,
+    ) -> &mut Self {
         self.time_scale = time_scale;
         self
     }
@@ -95,10 +109,7 @@ impl RealtimePlayer {
 
 impl Default for RealtimePlayer {
     fn default() -> Self {
-        Self {
-            is_playing: false,
-            time_scale: 1.0,
-        }
+        Self::new()
     }
 }
 
@@ -109,7 +120,7 @@ impl Default for RealtimePlayer {
 #[derive(Component, Debug)]
 pub struct RecordPlayer {
     // How many snapshots per second to take of the scene
-    pub fps: u32,
+    pub fps: u16,
     /// Where
     pub curr_frame: u64,
 }
@@ -124,12 +135,24 @@ impl Default for RecordPlayer {
 }
 
 impl RecordPlayer {
-    pub fn new() -> Self {
-        Self::default()
+    #[inline]
+    #[must_use]
+    pub const fn new(fps: u16) -> Self {
+        Self { fps, curr_frame: 0 }
     }
 
-    pub fn with_fps(mut self, fps: u32) -> Self {
+    /// Builder method for setting [`Self::fps`].
+    #[inline]
+    #[must_use]
+    pub const fn with_fps(mut self, fps: u16) -> Self {
         self.fps = fps;
         self
+    }
+
+    /// Calculates the delta seconds based on [`Self::fps`].
+    #[inline]
+    #[must_use]
+    pub const fn delta_secs(&self) -> f32 {
+        1.0 / self.fps as f32
     }
 }

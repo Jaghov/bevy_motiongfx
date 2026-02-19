@@ -144,8 +144,6 @@ fn main() {
         timeline.curr_time(),
         timeline.target_time()
     );
-
-    println!("Timeline is complete: {}", timeline.is_complete());
 }
 
 fn register_pipelines(

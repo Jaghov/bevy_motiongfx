@@ -14,16 +14,19 @@ pub struct MotionGfxWorldPlugin;
 
 impl Plugin for MotionGfxWorldPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<MotionGfxWorld>().add_systems(
-            PostUpdate,
-            (
-                sample_timelines,
-                complete_timelines::<RealtimePlayer>,
-                complete_timelines::<RecordPlayer>,
+        app.init_resource::<MotionGfxWorld>()
+            .add_systems(
+                PostUpdate,
+                sample_timelines.in_set(MotionGfxSet::Sample),
             )
-                .chain()
-                .in_set(MotionGfxSet::Sample),
-        );
+            .add_systems(
+                PostUpdate,
+                (
+                    complete_timelines::<RealtimePlayer>,
+                    complete_timelines::<RecordPlayer>,
+                )
+                    .after(MotionGfxSet::Sample),
+            );
     }
 }
 

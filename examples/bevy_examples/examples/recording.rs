@@ -1,83 +1,39 @@
 use core::f32::consts::FRAC_PI_2;
 
-use bevy::asset::RenderAssetUsages;
 use bevy::color::palettes;
 use bevy::prelude::*;
-use bevy::render::{
-    gpu_readback::{Readback, ReadbackComplete},
-    render_resource::{Extent3d, TextureDimension, TextureUsages},
-    view::screenshot::{Screenshot, save_to_disk},
-};
+use bevy::render::view::screenshot::{Screenshot, save_to_disk};
 use bevy_examples::timeline_movement;
-use bevy_motiongfx::{
-    BevyMotionGfxPlugin, controller::RecordPlayer, prelude::*,
-    world::TimelineComplete,
-};
+use bevy_motiongfx::BevyMotionGfxPlugin;
+use bevy_motiongfx::prelude::*;
+use bevy_motiongfx::world::TimelineComplete;
 
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, BevyMotionGfxPlugin))
-        .add_systems(PreStartup, spawn_canvas)
         .add_systems(Startup, (setup, spawn_timeline))
-        .add_observer(save_frame)
-        .add_systems(Update, timeline_movement)
+        .add_systems(Update, (timeline_movement, screenshot))
         .run();
 }
 
-#[derive(Resource)]
-struct RecordingCanvas(Handle<Image>);
-
-fn spawn_canvas(
+fn screenshot(
     mut commands: Commands,
-    mut images: ResMut<Assets<Image>>,
-) {
-    let mut image = Image::new_fill(
-        Extent3d {
-            width: 3840,
-            height: 2160,
-            depth_or_array_layers: 1,
-        },
-        TextureDimension::D2,
-        &[0, 0, 0, 255],
-        bevy::render::render_resource::TextureFormat::Rgba8UnormSrgb,
-        RenderAssetUsages::all(),
-    );
-
-    image.texture_descriptor.usage =
-    // COPY_SRC allows the GPU to write onto the Image buffer
-        TextureUsages::RENDER_ATTACHMENT | TextureUsages::COPY_SRC;
-
-    let handle = images.add(image);
-
-    commands.insert_resource(RecordingCanvas(handle.clone()));
-    commands.spawn(Readback::texture(handle));
-}
-
-fn save_frame(
-    gpu_img: On<ReadbackComplete>,
-    mut commands: Commands,
-    readbacks: Query<&Readback>,
     player: Query<&RecordPlayer, Without<TimelineComplete>>,
-    canvas: Res<RecordingCanvas>,
 ) {
     let Ok(player) = player.single() else {
         return;
     };
 
-    if let Readback::Texture(handle) =
-        readbacks.get(gpu_img.entity).unwrap()
-    {
-        if *handle != canvas.0 {
-            return;
-        }
-        commands.spawn(Screenshot::image(handle.clone())).observe(
-            save_to_disk(format!(
-                "frames/frame_{:05}.png",
-                player.curr_frame
-            )),
-        );
-    }
+    commands.spawn(Screenshot::primary_window()).observe(
+        save_to_disk(format!(
+            "frames/frame_{:05}.png",
+            player.curr_frame
+        )),
+    );
 }
+
+// TODO: Quit on last frame captured.
+// fn check_final_frame(captured: On<ScreenshotCaptured>) {}
 
 fn spawn_timeline(
     mut commands: Commands,
@@ -113,36 +69,21 @@ fn spawn_timeline(
 
     commands.spawn((
         motiongfx.add_timeline(b.compile()),
-        RecordPlayer::default().with_fps(30),
+        RecordPlayer::new(30),
     ));
 }
 
-fn setup(mut commands: Commands, image: Res<RecordingCanvas>) {
-    commands
-        .spawn((
-            Camera {
-                clear_color: Color::BLACK.into(),
-                ..default()
-            },
-            Camera3d::default(),
-            // Top down view.
-            Transform::from_xyz(0.0, 18.0, 0.0)
-                .with_rotation(Quat::from_rotation_x(-FRAC_PI_2)),
-        ))
-        .with_child((
-            Camera {
-                clear_color: Color::BLACK.into(),
-                order: 1,
-                ..Default::default()
-            },
-            bevy::camera::RenderTarget::Image(
-                bevy::camera::ImageRenderTarget {
-                    handle: image.0.clone(),
-                    scale_factor: 1.0,
-                },
-            ),
-            Camera3d::default(),
-        ));
+fn setup(mut commands: Commands) {
+    commands.spawn((
+        Camera {
+            clear_color: Color::BLACK.into(),
+            ..default()
+        },
+        Camera3d::default(),
+        // Top down view.
+        Transform::from_xyz(0.0, 18.0, 0.0)
+            .with_rotation(Quat::from_rotation_x(-FRAC_PI_2)),
+    ));
 
     commands.spawn((
         DirectionalLight::default(),

@@ -21,6 +21,8 @@ use crate::track::Track;
 pub struct Timeline {
     action_world: ActionWorld,
     pipeline_counts: Box<[(PipelineKey, u32)]>,
+    /// Track length is garuanteed to be at least 1 by construction.
+    /// See [`TimelineBuilder::compile()`].
     tracks: Box<[Track]>,
     /// Cached actions that are queued to be sampled.
     ///
@@ -286,7 +288,16 @@ impl Timeline {
     /// Returns a reference the current playing track.
     #[inline]
     pub fn curr_track(&self) -> &Track {
+        // SAFETY: Track length is garuanteed to be at least 1.
         &self.tracks[self.curr_index]
+    }
+
+    /// Get the index of the last track. This is essentially the largest
+    /// index you can provide in [`Timeline::set_target_track`].
+    #[inline]
+    pub fn last_track_index(&self) -> usize {
+        // SAFETY: Track length is garuanteed to be at least 1.
+        self.tracks.len() - 1
     }
 
     /// Returns `true` if the current track is the last track.
@@ -295,23 +306,18 @@ impl Timeline {
         self.curr_index == self.last_track_index()
     }
 
-    /// Get the index of the last track. This is essentially the largest
-    /// index you can provide in [`Timeline::set_target_track`].
+    /// Has [`Self::curr_time()`] reached the end of the track at
+    /// [`Self::curr_index()`]?
     #[inline]
-    // TODO address index panic scenario
-    pub fn last_track_index(&self) -> usize {
-        self.tracks.len().saturating_sub(1)
+    pub fn is_track_end(&self) -> bool {
+        // SAFETY: Track length is garuanteed to be at least 1.
+        self.curr_time >= self.tracks[self.curr_index()].duration()
     }
 
-    // TODO Add docs for this
-    /// Get the index of the last track. This is essentially the largest
-    /// index you can provide in [`Timeline::set_target_track`].
+    /// Is [`Self::is_last_track()`] and [`Self::is_track_end()`].
     #[inline]
     pub fn is_complete(&self) -> bool {
-        self.is_last_track()
-            && self.curr_time
-                // TODO address index panic scenario
-                >= self.tracks()[self.last_track_index()].duration()
+        self.is_last_track() && self.is_track_end()
     }
 }
 
@@ -491,7 +497,17 @@ impl TimelineBuilder {
         self.tracks.extend(tracks);
     }
 
+    /// Compile into a [`Timeline`].
+    ///
+    /// ## Panic
+    ///
+    /// Panics if the track is empty.
     pub fn compile(self) -> Timeline {
+        debug_assert!(
+            !self.tracks.is_empty(),
+            "Track cannot be empty!"
+        );
+
         Timeline {
             action_world: self.action_world,
             pipeline_counts: self
@@ -505,6 +521,12 @@ impl TimelineBuilder {
             curr_index: 0,
             target_index: 0,
         }
+    }
+
+    /// Similar to [`Self::compile()`] but return `None` instead of
+    /// panicking.
+    pub fn try_compile(self) -> Option<Timeline> {
+        (!self.tracks.is_empty()).then_some(self.compile())
     }
 }
 
