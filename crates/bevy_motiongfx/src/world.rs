@@ -6,7 +6,7 @@ use bevy_platform::collections::HashMap;
 use motiongfx::prelude::{FieldAccessorRegistry, Timeline};
 
 use crate::MotionGfxSet;
-use crate::controller::RecordPlayer;
+use crate::controller::FixedRatePlayer;
 use crate::pipeline::WorldPipelineRegistry;
 use crate::prelude::RealtimePlayer;
 
@@ -23,7 +23,7 @@ impl Plugin for MotionGfxWorldPlugin {
                 PostUpdate,
                 (
                     complete_timelines::<RealtimePlayer>,
-                    complete_timelines::<RecordPlayer>,
+                    complete_timelines::<FixedRatePlayer>,
                 )
                     .after(MotionGfxSet::Sample),
             );

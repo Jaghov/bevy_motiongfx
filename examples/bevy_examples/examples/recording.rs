@@ -27,7 +27,7 @@ fn main() {
 
 fn screenshot(
     mut commands: Commands,
-    q_player: Query<&RecordPlayer, Without<TimelineComplete>>,
+    q_player: Query<&FixedRatePlayer, Without<TimelineComplete>>,
 ) {
     let Ok(player) = q_player.single() else {
         return;
@@ -45,7 +45,7 @@ fn screenshot(
     );
 }
 
-fn start_recording(mut q_player: Query<&mut RecordPlayer>) {
+fn start_recording(mut q_player: Query<&mut FixedRatePlayer>) {
     let Ok(mut player) = q_player.single_mut() else {
         return;
     };
@@ -93,7 +93,7 @@ fn spawn_timeline(
 
     commands.spawn((
         motiongfx.add_timeline(b.compile()),
-        RecordPlayer::new(30),
+        FixedRatePlayer::new(144),
     ));
 }
 

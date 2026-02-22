@@ -36,7 +36,7 @@ fn realtime_player_timing(
 
 fn record_player_timing(
     mut motiongfx: ResMut<MotionGfxWorld>,
-    mut q_timelines: Query<(&TimelineId, &mut RecordPlayer)>,
+    mut q_timelines: Query<(&TimelineId, &mut FixedRatePlayer)>,
 ) {
     for (id, mut player) in
         q_timelines.iter_mut().filter(|(_, p)| p.is_playing)
@@ -116,26 +116,26 @@ impl Default for RealtimePlayer {
 }
 
 /// A controller for [`Timeline`] that increments the sequence time
-/// based on based on a specified fps. This is for scene recording.
+/// based on based on a specified fps. This is for helpful for scene recording.
 ///
 /// [`Timeline`]: motiongfx::timeline::Timeline
 #[derive(Component, Debug)]
-pub struct RecordPlayer {
+pub struct FixedRatePlayer {
     /// Determines how many snapshots per second to take.
     pub fps: u16,
-    /// Which frame are we currently at now?
+    /// Which frame are we currently at now
     pub curr_frame: u64,
     /// Determines if the timeline is currently playing.
     pub is_playing: bool,
 }
 
-impl Default for RecordPlayer {
+impl Default for FixedRatePlayer {
     fn default() -> Self {
         Self::new(30)
     }
 }
 
-impl RecordPlayer {
+impl FixedRatePlayer {
     #[inline]
     #[must_use]
     pub const fn new(fps: u16) -> Self {
