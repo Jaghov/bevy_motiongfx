@@ -3,26 +3,39 @@ use core::f32::consts::FRAC_PI_2;
 use bevy::color::palettes;
 use bevy::prelude::*;
 use bevy::render::view::screenshot::{Screenshot, save_to_disk};
-use bevy_examples::timeline_movement;
 use bevy_motiongfx::BevyMotionGfxPlugin;
 use bevy_motiongfx::prelude::*;
 use bevy_motiongfx::world::TimelineComplete;
 
+use crate::pipelines_ready::*;
+
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, BevyMotionGfxPlugin))
+        .add_plugins((
+            DefaultPlugins,
+            BevyMotionGfxPlugin,
+            PipelinesReadyPlugin,
+        ))
         .add_systems(Startup, (setup, spawn_timeline))
-        .add_systems(Update, (timeline_movement, screenshot))
+        .add_systems(OnEnter(PipelineState::Ready), start_recording)
+        .add_systems(
+            Update,
+            screenshot.run_if(in_state(PipelineState::Ready)),
+        )
         .run();
 }
 
 fn screenshot(
     mut commands: Commands,
-    player: Query<&RecordPlayer, Without<TimelineComplete>>,
+    q_player: Query<&RecordPlayer, Without<TimelineComplete>>,
 ) {
-    let Ok(player) = player.single() else {
+    let Ok(player) = q_player.single() else {
         return;
     };
+
+    if !player.is_playing {
+        return;
+    }
 
     commands.spawn(Screenshot::primary_window()).observe(
         save_to_disk(format!(
@@ -30,6 +43,14 @@ fn screenshot(
             player.curr_frame
         )),
     );
+}
+
+fn start_recording(mut q_player: Query<&mut RecordPlayer>) {
+    let Ok(mut player) = q_player.single_mut() else {
+        return;
+    };
+
+    player.set_playing(true);
 }
 
 // TODO: Quit on last frame captured.
@@ -42,13 +63,16 @@ fn spawn_timeline(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     // Spawn cube.
+    let mesh = meshes.add(Cuboid::default());
+    let mat = materials.add(StandardMaterial {
+        base_color: palettes::tailwind::LIME_200.into(),
+        ..default()
+    });
+
     let cube = commands
         .spawn((
-            Mesh3d(meshes.add(Cuboid::default())),
-            MeshMaterial3d(materials.add(StandardMaterial {
-                base_color: palettes::tailwind::LIME_200.into(),
-                ..default()
-            })),
+            Mesh3d(mesh),
+            MeshMaterial3d(mat),
             Transform::from_xyz(-5.0, 0.0, 0.0),
         ))
         .id();
@@ -107,4 +131,66 @@ pub fn arc_lerp_3d(start: Vec3, end: Vec3, t: f32) -> Vec3 {
     let target_dir = start_dir.slerp(end_dir, t);
 
     center + target_dir.as_vec3() * (center - start).length()
+}
+
+mod pipelines_ready {
+    use bevy::{
+        prelude::*,
+        render::{render_resource::*, *},
+    };
+
+    #[derive(
+        States,
+        Default,
+        Debug,
+        Clone,
+        Copy,
+        PartialEq,
+        Eq,
+        PartialOrd,
+        Ord,
+        Hash,
+    )]
+    pub enum PipelineState {
+        #[default]
+        Loading,
+        Ready,
+    }
+
+    pub struct PipelinesReadyPlugin;
+    impl Plugin for PipelinesReadyPlugin {
+        fn build(&self, app: &mut App) {
+            app.init_state::<PipelineState>();
+
+            // In order to gain access to the pipelines status, we have to
+            // go into the `RenderApp`, grab the resource from the main App
+            // and then update the pipelines status from there.
+            // Writing between these Apps can only be done through the
+            // `ExtractSchedule`.
+            app.sub_app_mut(RenderApp)
+                .add_systems(ExtractSchedule, update_pipelines_ready);
+        }
+    }
+
+    fn update_pipelines_ready(
+        mut main_world: ResMut<MainWorld>,
+        pipelines: Res<PipelineCache>,
+    ) {
+        let curr_state =
+            main_world.resource::<State<PipelineState>>();
+        if *curr_state.get() == PipelineState::Ready {
+            return;
+        }
+
+        let mut state =
+            main_world.resource_mut::<NextState<PipelineState>>();
+
+        // If there are pipelines cerated and all of them are already
+        // initialized.
+        if pipelines.pipelines().count() > 0
+            && pipelines.waiting_pipelines().count() == 0
+        {
+            state.set(PipelineState::Ready);
+        }
+    }
 }

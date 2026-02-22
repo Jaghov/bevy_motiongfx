@@ -88,10 +88,9 @@ let action = b
     .act("x", field!(<f32>), |x| x + 1.0)
     .with_interp(|&a, &b, t| a + (b - a) * t);
 
-let frag = action.play(1.0);
-let track = frag.compile();
-
+let track = action.play(1.0).compile();
 b.add_tracks(track);
+
 let mut timeline = b.compile();
 
 // Bake actions into segments.

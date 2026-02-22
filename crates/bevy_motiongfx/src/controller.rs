@@ -38,7 +38,9 @@ fn record_player_timing(
     mut motiongfx: ResMut<MotionGfxWorld>,
     mut q_timelines: Query<(&TimelineId, &mut RecordPlayer)>,
 ) {
-    for (id, mut player) in q_timelines.iter_mut() {
+    for (id, mut player) in
+        q_timelines.iter_mut().filter(|(_, p)| p.is_playing)
+    {
         if let Some(timeline) = motiongfx.get_timeline_mut(id) {
             // Each frame we update the timeline according to the fps.
             let target_time =
@@ -119,18 +121,17 @@ impl Default for RealtimePlayer {
 /// [`Timeline`]: motiongfx::timeline::Timeline
 #[derive(Component, Debug)]
 pub struct RecordPlayer {
-    // How many snapshots per second to take of the scene
+    /// Determines how many snapshots per second to take.
     pub fps: u16,
-    /// Where
+    /// Which frame are we currently at now?
     pub curr_frame: u64,
+    /// Determines if the timeline is currently playing.
+    pub is_playing: bool,
 }
 
 impl Default for RecordPlayer {
     fn default() -> Self {
-        Self {
-            fps: 30,
-            curr_frame: 0,
-        }
+        Self::new(30)
     }
 }
 
@@ -138,7 +139,11 @@ impl RecordPlayer {
     #[inline]
     #[must_use]
     pub const fn new(fps: u16) -> Self {
-        Self { fps, curr_frame: 0 }
+        Self {
+            fps,
+            curr_frame: 0,
+            is_playing: false,
+        }
     }
 
     /// Builder method for setting [`Self::fps`].
@@ -154,5 +159,14 @@ impl RecordPlayer {
     #[must_use]
     pub const fn delta_secs(&self) -> f32 {
         1.0 / self.fps as f32
+    }
+
+    /// Setter method for setting [`Self::is_playing`].
+    pub const fn set_playing(
+        &mut self,
+        is_playing: bool,
+    ) -> &mut Self {
+        self.is_playing = is_playing;
+        self
     }
 }
