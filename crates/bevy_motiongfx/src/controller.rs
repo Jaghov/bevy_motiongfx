@@ -162,6 +162,7 @@ impl FixedRatePlayer {
     }
 
     /// Setter method for setting [`Self::is_playing`].
+    #[inline]
     pub const fn set_playing(
         &mut self,
         is_playing: bool,
