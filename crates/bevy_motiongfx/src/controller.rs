@@ -11,7 +11,7 @@ impl Plugin for ControllerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             PostUpdate,
-            (record_player_timing, realtime_player_timing)
+            (fixed_rate_player_timing, realtime_player_timing)
                 .in_set(MotionGfxSet::Controller),
         );
     }
