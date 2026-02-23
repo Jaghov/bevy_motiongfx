@@ -34,7 +34,7 @@ fn realtime_player_timing(
     }
 }
 
-fn record_player_timing(
+fn fixed_rate_player_timing(
     mut motiongfx: ResMut<MotionGfxWorld>,
     mut q_timelines: Query<(&TimelineId, &mut FixedRatePlayer)>,
 ) {
