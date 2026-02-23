@@ -9,6 +9,11 @@ use bevy_motiongfx::world::TimelineComplete;
 
 use crate::pipelines_ready::*;
 
+/// Time to wait after animation before closing app.
+const EXIT_TIME: f32 = 0.5;
+/// Directory where recorded frames will be saved.
+const SAVE_DIR: &'static str = "frames/";
+
 fn main() {
     App::new()
         .add_plugins((
@@ -16,12 +21,20 @@ fn main() {
             BevyMotionGfxPlugin,
             PipelinesReadyPlugin,
         ))
-        .add_systems(Startup, (setup, spawn_timeline))
+        .add_systems(
+            Startup,
+            (setup, spawn_timeline, setup_save_path),
+        )
         .add_systems(OnEnter(PipelineState::Ready), start_recording)
         .add_systems(
             Update,
             screenshot.run_if(in_state(PipelineState::Ready)),
         )
+        .add_systems(Update, check_final_frame)
+        .insert_resource(ExitDelayTimer(Timer::from_seconds(
+            EXIT_TIME,
+            TimerMode::Once,
+        )))
         .run();
 }
 
@@ -39,8 +52,8 @@ fn screenshot(
 
     commands.spawn(Screenshot::primary_window()).observe(
         save_to_disk(format!(
-            "frames/frame_{:05}.png",
-            player.curr_frame
+            "{}frame_{:05}.png",
+            SAVE_DIR, player.curr_frame
         )),
     );
 }
@@ -52,9 +65,25 @@ fn start_recording(mut q_player: Query<&mut FixedRatePlayer>) {
 
     player.set_playing(true);
 }
+#[derive(Resource)]
+struct ExitDelayTimer(Timer);
 
-// TODO: Quit on last frame captured.
-// fn check_final_frame(captured: On<ScreenshotCaptured>) {}
+// Quit on last frame captured.
+fn check_final_frame(
+    incomplete_players: Query<
+        &FixedRatePlayer,
+        Without<TimelineComplete>,
+    >,
+    mut exit_timer: ResMut<ExitDelayTimer>,
+    time: Res<Time>,
+    mut app_exit: MessageWriter<AppExit>,
+) {
+    if incomplete_players.is_empty()
+        && exit_timer.0.tick(time.delta()).is_finished()
+    {
+        app_exit.write(AppExit::Success);
+    }
+}
 
 fn spawn_timeline(
     mut commands: Commands,
@@ -113,6 +142,16 @@ fn setup(mut commands: Commands) {
         Transform::from_xyz(3.0, 10.0, 5.0)
             .looking_at(Vec3::ZERO, Vec3::Y),
     ));
+}
+
+fn setup_save_path() {
+    match std::fs::exists(SAVE_DIR) {
+        Ok(true) => (),
+        Ok(false) => std::fs::create_dir(SAVE_DIR).expect(
+            "Should have been able to create frame directory",
+        ),
+        Err(_) => panic!("could not verify 'frames/' exists"),
+    };
 }
 
 // TODO: Optimize this.
