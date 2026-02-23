@@ -21,12 +21,14 @@ use crate::track::Track;
 pub struct Timeline {
     action_world: ActionWorld,
     pipeline_counts: Box<[(PipelineKey, u32)]>,
+    /// Track length is guaranteed to be at least 1 by construction.
+    /// See [`TimelineBuilder::compile()`].
     tracks: Box<[Track]>,
     /// Cached actions that are queued to be sampled.
     ///
     /// This cache will be cleared everytime [`Timeline::queue_actions`]
     /// is called.
-    queue_cahce: QueueCache,
+    queue_cache: QueueCache,
     /// The current time of the current track.
     curr_time: f32,
     /// The target time of the target track.
@@ -107,7 +109,7 @@ impl Timeline {
                         SampleMode::Interp(_) => unreachable!(),
                     };
 
-                    self.queue_cahce.cache(
+                    self.queue_cache.cache(
                         *key,
                         clip.id,
                         &mut self.action_world,
@@ -170,7 +172,7 @@ impl Timeline {
                     let t = (self.target_time - clip.start)
                         / (clip.end() - clip.start);
 
-                    self.queue_cahce.cache(
+                    self.queue_cache.cache(
                         *key,
                         clip.id,
                         &mut self.action_world,
@@ -194,7 +196,7 @@ impl Timeline {
                         continue;
                     }
 
-                    self.queue_cahce.cache(
+                    self.queue_cache.cache(
                         *key,
                         clip.id,
                         &mut self.action_world,
@@ -240,7 +242,7 @@ impl Timeline {
     }
 
     fn reset_queues(&mut self) {
-        self.queue_cahce.clear();
+        self.queue_cache.clear();
         self.action_world.clear_all_marks();
     }
 }
@@ -249,8 +251,8 @@ impl Timeline {
 impl Timeline {
     /// Returns the current queue cache.
     #[inline]
-    pub fn queue_cahce(&self) -> &QueueCache {
-        &self.queue_cahce
+    pub fn queue_cache(&self) -> &QueueCache {
+        &self.queue_cache
     }
 
     /// Returns the current playback time.
@@ -286,7 +288,16 @@ impl Timeline {
     /// Returns a reference the current playing track.
     #[inline]
     pub fn curr_track(&self) -> &Track {
+        // SAFETY: Track length is garuanteed to be at least 1.
         &self.tracks[self.curr_index]
+    }
+
+    /// Get the index of the last track. This is essentially the largest
+    /// index you can provide in [`Timeline::set_target_track`].
+    #[inline]
+    pub fn last_track_index(&self) -> usize {
+        // SAFETY: Track length is garuanteed to be at least 1.
+        self.tracks.len() - 1
     }
 
     /// Returns `true` if the current track is the last track.
@@ -295,11 +306,18 @@ impl Timeline {
         self.curr_index == self.last_track_index()
     }
 
-    /// Get the index of the last track. This is essentially the largest
-    /// index you can provide in [`Timeline::set_target_track`].
+    /// Has [`Self::curr_time()`] reached the end of the track at
+    /// [`Self::curr_index()`]?
     #[inline]
-    pub fn last_track_index(&self) -> usize {
-        self.tracks.len().saturating_sub(1)
+    pub fn is_track_end(&self) -> bool {
+        // SAFETY: Track length is garuanteed to be at least 1.
+        self.curr_time >= self.tracks[self.curr_index()].duration()
+    }
+
+    /// Is [`Self::is_last_track()`] and [`Self::is_track_end()`].
+    #[inline]
+    pub fn is_complete(&self) -> bool {
+        self.is_last_track() && self.is_track_end()
     }
 }
 
@@ -479,7 +497,17 @@ impl TimelineBuilder {
         self.tracks.extend(tracks);
     }
 
+    /// Compile into a [`Timeline`].
+    ///
+    /// ## Panic
+    ///
+    /// Panics if the track is empty.
     pub fn compile(self) -> Timeline {
+        debug_assert!(
+            !self.tracks.is_empty(),
+            "Track cannot be empty!"
+        );
+
         Timeline {
             action_world: self.action_world,
             pipeline_counts: self
@@ -487,12 +515,18 @@ impl TimelineBuilder {
                 .into_iter()
                 .collect(),
             tracks: self.tracks.into_boxed_slice(),
-            queue_cahce: QueueCache::new(),
+            queue_cache: QueueCache::new(),
             curr_time: 0.0,
             target_time: 0.0,
             curr_index: 0,
             target_index: 0,
         }
+    }
+
+    /// Similar to [`Self::compile()`] but return `None` instead of
+    /// panicking.
+    pub fn try_compile(self) -> Option<Timeline> {
+        (!self.tracks.is_empty()).then_some(self.compile())
     }
 }
 

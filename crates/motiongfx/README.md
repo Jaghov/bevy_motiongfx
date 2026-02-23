@@ -73,16 +73,25 @@ Registries must be created to perform baking/sampling. For more info
 about registries, see below.
 
 ```rust
+use std::collections::HashMap;
 use motiongfx::prelude::*;
 
-// Using a dummy world, in reality, it should be something that maps
-// subjects' Ids to their animatable components.
-type SubjectWorld = ();
+type SubjectWorld = HashMap<&'static str, f32>;
 
-let mut world: SubjectWorld = ();
+let mut world: SubjectWorld = HashMap::new();
+world.insert("x", 0.0);
 let accessor_registry = FieldAccessorRegistry::new();
 let pipeline_registry = PipelineRegistry::<SubjectWorld>::new();
-let mut timeline = TimelineBuilder::new().compile();
+
+let mut b = TimelineBuilder::new();
+let action = b
+    .act("x", field!(<f32>), |x| x + 1.0)
+    .with_interp(|&a, &b, t| a + (b - a) * t);
+
+let track = action.play(1.0).compile();
+b.add_tracks(track);
+
+let mut timeline = b.compile();
 
 // Bake actions into segments.
 timeline.bake_actions(

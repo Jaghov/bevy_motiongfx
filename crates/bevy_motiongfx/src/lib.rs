@@ -16,7 +16,7 @@ pub mod world;
 pub mod prelude {
     pub use motiongfx::prelude::*;
 
-    pub use crate::controller::RealtimePlayer;
+    pub use crate::controller::{FixedRatePlayer, RealtimePlayer};
     pub use crate::interpolation::{
         ActionInterpTimelineExt, Interpolation,
     };
