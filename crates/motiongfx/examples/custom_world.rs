@@ -119,16 +119,21 @@ fn main() {
     );
 
     // Check the values after sampling:
-    println!("After:  {:?}", world.subject_world);
+    println!("After:  {:?}\n", world.subject_world);
 
-    timeline.set_target_time(7.0);
-    println!();
+    let new_target_time = 7.0;
+
+    // Set target time to after total track duration
+    timeline.set_target_time(new_target_time);
+
+    println!("timeline target time set to: {}s", new_target_time);
 
     println!(
-        "current time: {},\ntarget time: {}",
+        "# Before sampling \ncurrent time: {}s,\ntarget time: {}s",
         timeline.curr_time(),
         timeline.target_time()
     );
+    println!("target time clamped to timeline duration (3s)\n");
 
     // Queue and sample the actions.
     timeline.queue_actions();
@@ -137,10 +142,9 @@ fn main() {
         &world.pipeline_registry,
         &mut world.subject_world,
     );
-    println!();
 
     println!(
-        "current time: {},\ntarget time: {}",
+        "# After sampling: \ncurrent time: {}s,\ntarget time: {}s\n",
         timeline.curr_time(),
         timeline.target_time()
     );
