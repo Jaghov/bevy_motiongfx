@@ -116,7 +116,7 @@ impl Default for RealtimePlayer {
 }
 
 /// A controller for [`Timeline`] that increments the sequence time
-/// based on based on a specified fps. This is for helpful for scene recording.
+/// based on based on a specified fps. This is helpful for scene recording.
 ///
 /// [`Timeline`]: motiongfx::timeline::Timeline
 #[derive(Component, Debug)]
