@@ -12,7 +12,7 @@ use crate::pipelines_ready::*;
 /// Time to wait after animation before closing app.
 const EXIT_TIME: f32 = 0.5;
 /// Directory where recorded frames will be saved.
-const SAVE_DIR: &'static str = "frames/";
+const SAVE_DIR: &str = "frames/";
 
 fn main() {
     App::new()
