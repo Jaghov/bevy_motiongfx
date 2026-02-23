@@ -21,7 +21,7 @@ use crate::track::Track;
 pub struct Timeline {
     action_world: ActionWorld,
     pipeline_counts: Box<[(PipelineKey, u32)]>,
-    /// Track length is garuanteed to be at least 1 by construction.
+    /// Track length is guaranteed to be at least 1 by construction.
     /// See [`TimelineBuilder::compile()`].
     tracks: Box<[Track]>,
     /// Cached actions that are queued to be sampled.
