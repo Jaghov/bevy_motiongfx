@@ -17,15 +17,14 @@ impl Plugin for MotionGfxWorldPlugin {
         app.init_resource::<MotionGfxWorld>()
             .add_systems(
                 PostUpdate,
-                sample_timelines.in_set(MotionGfxSet::Sample),
-            )
-            .add_systems(
-                PostUpdate,
                 (
-                    complete_timelines::<RealtimePlayer>,
-                    complete_timelines::<FixedRatePlayer>,
+                    sample_timelines.in_set(MotionGfxSet::Sample),
+                    (
+                        complete_timelines::<RealtimePlayer>,
+                        complete_timelines::<FixedRatePlayer>,
+                    )
+                        .after(MotionGfxSet::Sample),
                 )
-                    .after(MotionGfxSet::Sample),
             );
     }
 }
